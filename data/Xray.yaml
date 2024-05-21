@@ -1,0 +1,15 @@
+# COCO 2017 dataset http://cocodataset.org
+
+# download command/URL (optional)
+download: bash ./scripts/get_coco.sh
+
+# train and val data as 1) directory: path/images/, 2) file: path/images.txt, or 3) list: [path1/images/, path2/images/]
+train: all-6-2-2/images/train  # 118287 images
+val: all-6-2-2/images/val  # 5000 images
+test: all-6-2-2/images/test  # 20288 of 40670 images, submit to https://competitions.codalab.org/competitions/20794
+
+# number of classes
+nc: 10
+
+# class names
+names: ['drinkbottle', 'pressure', 'lighter', 'knife', 'smallelectronicequipmen', 'powerbank', 'umbrella', 'glassbottle', 'scissor', 'laptop']
