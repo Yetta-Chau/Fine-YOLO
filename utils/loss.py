@@ -466,11 +466,17 @@ class ComputeLoss:
                 pwh = (ps[:, 2:4].sigmoid() * 2) ** 2 * anchors[i]
                 pbox = torch.cat((pxy, pwh), 1)  # predicted box
                 iou = bbox_iou(pbox.T, tbox[i], x1y1x2y2=False, CIoU=True)  # iou(prediction, target)
-                lbox += (1.0 - iou).mean()  # iou loss
+                # lbox += (1.0 - iou).mean()  # iou loss
 
-                # Objectness
-                tobj[b, a, gj, gi] = (1.0 - self.gr) + self.gr * iou.detach().clamp(0).type(tobj.dtype)  # iou ratio
-
+                # # Objectness
+                # tobj[b, a, gj, gi] = (1.0 - self.gr) + self.gr * iou.detach().clamp(0).type(tobj.dtype)  # iou ratio
+                nwd = wasserstein_loss(pbox, tbox[i]).squeeze()
+                iou_ratio = 0.5
+                lbox += (1 - iou_ratio) * (1.0 - nwd).mean() + iou_ratio * (1.0 - iou).mean()  # iou loss
+ 
+ 
+# Objectness
+iou = (iou.detach() * iou_ratio + nwd.detach() * (1 - iou_ratio)).clamp(0, 1).type(tobj.dtype)
                 # Classification
                 if self.nc > 1:  # cls loss (only if multiple classes)
                     t = torch.full_like(ps[:, 5:], self.cn, device=device)  # targets
@@ -496,7 +502,29 @@ class ComputeLoss:
 
         loss = lbox + lobj + lcls
         return loss * bs, torch.cat((lbox, lobj, lcls, loss)).detach()
-
+  def wasserstein_loss(pred, target, eps=1e-7, constant=12.8):
+        center1 = pred[:, :2]
+        center2 = target[:, :2]
+ 
+ 
+        whs = center1[:, :2] - center2[:, :2]
+ 
+ 
+        center_distance = whs[:, 0] * whs[:, 0] + whs[:, 1] * whs[:, 1] + eps #
+ 
+ 
+        w1 = pred[:, 2]  + eps
+        h1 = pred[:, 3]  + eps
+        w2 = target[:, 2] + eps
+        h2 = target[:, 3] + eps
+ 
+ 
+        wh_distance = ((w1 - w2) ** 2 + (h1 - h2) ** 2) / 4
+ 
+ 
+        wasserstein_2 = center_distance + wh_distance
+        return torch.exp(-torch.sqrt(wasserstein_2) / constant)
+    
     def build_targets(self, p, targets):
         # Build targets for compute_loss(), input targets(image,class,x,y,w,h)
         na, nt = self.na, targets.shape[0]  # number of anchors, targets
